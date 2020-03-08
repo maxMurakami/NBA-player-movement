@@ -17,8 +17,8 @@ import seaborn as sns
 from scipy.spatial import ConvexHull
 
 # Initialize project
-os.system('mkdir temp')
-datalink = None
+# os.system('mkdir temp')
+datalink = "https://github.com/neilmj/BasketballData"
 curl_request = None
 
 
@@ -98,46 +98,35 @@ class Game(object):
         self._determine_direction()
         print('All data is loaded')
 
+    # def _get_tracking_data(self):
+    #     """
+    #     Helper function for retrieving tracking data
+    #     Tracking Data is provided by NBA.com,
+    #     hosted at: https://www.github.com/neilmj
+    #     """
+    #     # Retrive and extract Data into /temp folder
+    #
+    #     os.system(("curl {datalink} -o temp/zipdata"
+    #                .format(datalink=datalink)))
+    #     os.system("7za -o./temp x temp/zipdata")
+    #     os.remove("./temp/zipdata")
+    #
+    #     # Extract game ID from extracted file name.
+    #     for file in os.listdir('./temp'):
+    #         if os.path.splitext(file)[1] == '.json':
+    #             self.game_id = file[:-5]
+    #
+    #     # Load tracking data and remove json file
+    #     with open('temp/{self.game_id}.json'.format(self=self)) as data_file:
+    #         self.tracking_data = json.load(data_file)  # Load this json
+    #     os.remove('./temp/{self.game_id}.json'.format(self=self))
+    #     return self
+
     def _get_tracking_data(self):
-        """
-        Helper function for retrieving tracking data
-        Tracking Data is provided by NBA.com,
-        hosted at: https://www.github.com/neilmj
-        """
-        # Retrive and extract Data into /temp folder
-
-        os.system(("curl {datalink} -o temp/zipdata"
-                   .format(datalink=datalink)))
-        os.system("7za -o./temp x temp/zipdata")
-        os.remove("./temp/zipdata")
-
-        # Extract game ID from extracted file name.
-        for file in os.listdir('./temp'):
-            if os.path.splitext(file)[1] == '.json':
-                self.game_id = file[:-5]
-
-        # Load tracking data and remove json file
-        with open('temp/{self.game_id}.json'.format(self=self)) as data_file:
-            self.tracking_data = json.load(data_file)  # Load this json
-        os.remove('./temp/{self.game_id}.json'.format(self=self))
-        return self
-
+        with open('/Users/murakamiyumiko/nba-movement-data/data/0021500663.json'.format(self=self)) as data_file:
+         self.tracking_data = json.load(data_file)
     def _get_playbyplay_data(self):
-        """
-        Helper function for retrieving play-by-play data.
-        Play-by-play data is obtained via API call to NBA.com
-        This service is likely to go down at any moment and ruin this
-        whole project.
-        """
-        os.system(curl_request)
-        # load play by play into pandas DataFrame
-        with open(("{cwd}/temp/pbp_{self.game_id}.json"
-                   .format(cwd=os.getcwd(), self=self))) as json_file:
-            parsed = json.load(json_file)['resultSets'][0]
-        os.remove(("{cwd}/temp/pbp_{self.game_id}.json"
-                   .format(cwd=os.getcwd(), self=self)))
-        self.pbp = pd.DataFrame(parsed['rowSet'])
-        self.pbp.columns = parsed['headers']
+        self.pbp = pd.read_csv("/Users/murakamiyumiko/nba-movement-data/data/events/0021500663.csv")
 
         # Get time in quarter reamining to cross-reference tracking data
         self.pbp['Qmin'] = (self.pbp['PCTIMESTRING'].str
@@ -155,6 +144,39 @@ class Game(object):
                              .fillna('0 - 0'))
         return self
 
+    # def _get_playbyplay_data(self):
+    #     """
+    #     Helper function for retrieving play-by-play data.
+    #     Play-by-play data is obtained via API call to NBA.com
+    #     This service is likely to go down at any moment and ruin this
+    #     whole project.
+    #     """
+    #     os.system(curl_request)
+    #     # load play by play into pandas DataFrame
+    #     with open(("{cwd}/temp/pbp_{self.game_id}.json"
+    #                .format(cwd=os.getcwd(), self=self))) as json_file:
+    #         parsed = json.load(json_file)['resultSets'][0]
+    #     os.remove(("{cwd}/temp/pbp_{self.game_id}.json"
+    #                .format(cwd=os.getcwd(), self=self)))
+    #     self.pbp = pd.DataFrame(parsed['rowSet'])
+    #     self.pbp.columns = parsed['headers']
+    #
+    #     # Get time in quarter reamining to cross-reference tracking data
+    #     self.pbp['Qmin'] = (self.pbp['PCTIMESTRING'].str
+    #                         .split(':', expand=True)[0])
+    #     self.pbp['Qsec'] = (self.pbp['PCTIMESTRING'].str
+    #                         .split(':', expand=True)[1])
+    #     self.pbp['Qtime'] = (self.pbp['Qmin'].astype(int)*60 +
+    #                          self.pbp['Qsec'].astype(int))
+    #     self.pbp['game_time'] = ((self.pbp['PERIOD'] - 1) * 720 +
+    #                              (720 - self.pbp['Qtime']))
+    #
+    #     # Format score so that it makes sense: 'XX-XX'
+    #     self.pbp['SCORE'] = (self.pbp['SCORE']
+    #                          .fillna(method='ffill')
+    #                          .fillna('0 - 0'))
+    #     return self
+
     def _get_player_ids(self):
         """
         Helper function for returning player ids for all players in game.
@@ -169,7 +191,7 @@ class Game(object):
                 ids[row['PLAYER2_NAME']] = row['PLAYER2_ID']
             if row['PLAYER3_NAME'] not in ids:
                 ids[row['PLAYER3_NAME']] = row['PLAYER3_ID']
-        ids.pop(None)
+      #  ids.pop(None)
         self.player_ids = ids
         return self
 
@@ -449,7 +471,7 @@ class Game(object):
                 their edge thicker.
             universe_time (int): Time in the universe, in msec
         """
-        current_moment = self.moments.ix[frame_number]
+        current_moment = self.moments.iloc[frame_number]
         game_time = int(np.round(current_moment['game_time']))
         universe_time = int(current_moment['universe_time'])
         x_pos, y_pos, colors, sizes, edges = [], [], [], [], []
@@ -719,7 +741,7 @@ class Game(object):
         end_time = int(self.pbp[self.pbp['EVENTNUM'] == event_num].game_time)
         # To find lower bound on starting frame of the play,
         # determining when previous play ended
-        putative_start_time = int(self.pbp.ix[play_index-1].game_time)
+        putative_start_time = int(self.pbp.iloc[play_index-1].game_time)
         putative_start_frame = self.get_frame(putative_start_time)
         end_frame = self.get_frame(end_time)
         for test_frame in range(putative_start_frame, end_frame):
@@ -730,7 +752,7 @@ class Game(object):
         else:
             return None
         # Add two seconds to game time to let the players settle into position
-        start_frame = self.get_frame(round(self.moments.ix[test_frame].game_time + 2))
+        start_frame = self.get_frame(round(self.moments.iloc[test_frame].game_time + 2))
         return (start_frame, end_frame)
 
     def animate_play(self, game_time, length, highlight_player=None,
